@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # Copyright (C) 2014 Alistair Buxton <a.j.buxton@gmail.com>
+# Copyright (C) 2019 Edward Li <edwardyaoli@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -24,25 +25,26 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import urllib2
+import youtube_dl
 import json
 import itertools
 import os
 import sys
-from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 
 baseurl = 'https://www.googleapis.com/youtube/v3'
-my_key = os.environ.get('YOUTUBE_SERVER_API_KEY')
+my_key = 'INSERT API KEY HERE'
+username = 'INSERT USERNAME HERE'
+
+with open("mostrecent.txt", "r") as recent:
+    mostRecentId = recent.readline().strip()
 
 # check for missing inputs
 if not my_key:
   print "YOUTUBE_SERVER_API_KEY variable missing."
   sys.exit(-1)
 
-if not len(sys.argv) >= 2:
-  print "username and (optionally) destination file must be specified as first and second arguments."
-  sys.exit(-1)
-
 def get_channel_for_user(user):
+    print("Getting channel ID for "+user)
     url = baseurl + '/channels?part=id&forUsername='+ user + '&key=' + my_key
     response = urllib2.urlopen(url)
     data = json.load(response)
@@ -57,6 +59,7 @@ def get_playlists(channel):
 
     next_page = ''
     while True:
+        print("Getting subscribed channels (50 at a time)")
         # we are limited to 50 results. if the user subscribed to more than 50 channels
         # we have to make multiple requests here.
         response = urllib2.urlopen(url+next_page)
@@ -68,6 +71,7 @@ def get_playlists(channel):
 
         # actually getting the channel uploads requires knowing the upload playlist ID, which means
         # another request. luckily we can bulk these 50 at a time.
+        print("Getting subscribed channel playlist IDs (50 at a time)")
         purl = baseurl + '/channels?part=contentDetails&id='+ '%2C'.join(subs) + '&maxResults=50&key=' + my_key
         response = urllib2.urlopen(purl)
         data2 = json.load(response)
@@ -88,6 +92,7 @@ def get_playlist_items(playlist):
     videos = []
 
     if playlist:
+        print("Getting last 5 items for playlist "+playlist)
         # get the last 5 videos uploaded to the playlist
         url = baseurl + '/playlistItems?part=contentDetails&playlistId='+ playlist + '&maxResults=5&key=' + my_key
         response = urllib2.urlopen(url)
@@ -99,6 +104,7 @@ def get_playlist_items(playlist):
     return videos
 
 def get_real_videos(video_ids):
+    print("Getting real video metadata (50 at a time)")
     videos = []
     purl = baseurl + '/videos?part=snippet&id='+ '%2C'.join(video_ids) + '&maxResults=50&key=' + my_key
     response = urllib2.urlopen(purl)
@@ -113,9 +119,6 @@ def chunks(l, n):
         yield l[i:i+n]
 
 def do_it():
-
-    username = sys.argv[1]
-
     # get all upload playlists of subbed channels
     playlists = get_playlists(get_channel_for_user(username))
 
@@ -132,45 +135,29 @@ def do_it():
 
     # sort them by date
     sortedvids = sorted(allvids, key=lambda k: k['snippet']['publishedAt'], reverse=True)
+    sortedvids = sortedvids[:20]
+    
+    try:
+        index = [v['id'] for v in sortedvids].index(mostRecentId)
+        sortedvids = sortedvids[:index]
+    except ValueError:
+        pass
 
+    sortedvids.reverse()
 
-    # build the rss
-    rss = Element('rss')
-    rss.attrib['version'] = '2.0'
-    channel = SubElement(rss, 'channel')
-    title = SubElement(channel, 'title')
-    title.text = 'Youtube subscriptions for ' + username
-    link = SubElement(channel, 'link')
-    link.text = 'http://www.youtube.com/'
+    ydl_opts = {'format': '22'}
+
+    if not os.path.exists("videos"):
+        os.makedirs("videos")
+
+    os.chdir("videos")
 
     # add the most recent 20
-    for v in sortedvids[:20]:
-        item = SubElement(channel, 'item')
-        title = SubElement(item, 'title')
-        title.text = v['snippet']['title']
-        link = SubElement(item, 'link')
-        link.text = 'http://youtube.com/watch?v=' + v['id']
-        author = SubElement(item, 'author')
-        author.text = v['snippet']['channelTitle']
-        guid = SubElement(item, 'guid')
-        guid.attrib['isPermaLink'] = 'true'
-        guid.text = 'http://youtube.com/watch?v=' + v['id']
-        pubDate = SubElement(item, 'pubDate')
-        pubDate.text = v['snippet']['publishedAt']
-        description = SubElement(item, 'description')
-        description.text = v['snippet']['description']
-
-    if len(sys.argv) >= 3:
-        filename = sys.argv[2]
-        f = open(filename, 'w')
-    else:
-        f = sys.stdout
-
-    f.write('<?xml version="1.0" encoding="UTF-8" ?>')
-    f.write(tostring(rss).encode('utf-8'))
-    f.close()
-
-
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        for v in sortedvids:
+            ydl.download(["https://www.youtube.com/watch?v="+v['id']])
+            with open('../mostrecent.txt', 'w') as recent:
+                recent.write(v['id'])
 
 if __name__ == '__main__':
     for i in range(3):
