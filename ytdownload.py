@@ -24,7 +24,7 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import urllib2
+import urllib
 import youtube_dl
 import json
 import itertools
@@ -40,13 +40,13 @@ with open("mostrecent.txt", "r") as recent:
 
 # check for missing inputs
 if not my_key:
-  print "YOUTUBE_SERVER_API_KEY variable missing."
+  print("YOUTUBE_SERVER_API_KEY variable missing.")
   sys.exit(-1)
 
 def get_channel_for_user(user):
     print("Getting channel ID for "+user)
     url = baseurl + '/channels?part=id&forUsername='+ user + '&key=' + my_key
-    response = urllib2.urlopen(url)
+    response = urllib.request.urlopen(url)
     data = json.load(response)
     return data['items'][0]['id']
 
@@ -62,7 +62,7 @@ def get_playlists(channel):
         print("Getting subscribed channels (50 at a time)")
         # we are limited to 50 results. if the user subscribed to more than 50 channels
         # we have to make multiple requests here.
-        response = urllib2.urlopen(url+next_page)
+        response = urllib.request.urlopen(url+next_page)
         data = json.load(response)
         subs = []
         for i in data['items']:
@@ -73,7 +73,7 @@ def get_playlists(channel):
         # another request. luckily we can bulk these 50 at a time.
         print("Getting subscribed channel playlist IDs (50 at a time)")
         purl = baseurl + '/channels?part=contentDetails&id='+ '%2C'.join(subs) + '&maxResults=50&key=' + my_key
-        response = urllib2.urlopen(purl)
+        response = urllib.request.urlopen(purl)
         data2 = json.load(response)
         for i in data2['items']:
             try:
@@ -95,7 +95,7 @@ def get_playlist_items(playlist):
         print("Getting last 5 items for playlist "+playlist)
         # get the last 5 videos uploaded to the playlist
         url = baseurl + '/playlistItems?part=contentDetails&playlistId='+ playlist + '&maxResults=5&key=' + my_key
-        response = urllib2.urlopen(url)
+        response = urllib.request.urlopen(url)
         data = json.load(response)    
         for i in data['items']:
             if i['kind'] == 'youtube#playlistItem':
@@ -107,7 +107,7 @@ def get_real_videos(video_ids):
     print("Getting real video metadata (50 at a time)")
     videos = []
     purl = baseurl + '/videos?part=snippet&id='+ '%2C'.join(video_ids) + '&maxResults=50&key=' + my_key
-    response = urllib2.urlopen(purl)
+    response = urllib.request.urlopen(purl)
     data = json.load(response)
 
     return data['items']
@@ -163,7 +163,7 @@ if __name__ == '__main__':
     for i in range(3):
         try:
             do_it()
-        except urllib2.HTTPError, error:
+        except urllib.request.HTTPError as error:
             if error.code == 500:
                 continue
             raise error
