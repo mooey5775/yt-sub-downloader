@@ -96,7 +96,7 @@ def get_playlist_items(playlist):
         # get the last 5 videos uploaded to the playlist
         url = baseurl + '/playlistItems?part=contentDetails&playlistId='+ playlist + '&maxResults=5&key=' + my_key
         response = urllib.request.urlopen(url)
-        data = json.load(response)    
+        data = json.load(response)
         for i in data['items']:
             if i['kind'] == 'youtube#playlistItem':
                 videos.append(i['contentDetails']['videoId'])
@@ -115,7 +115,7 @@ def get_real_videos(video_ids):
 def chunks(l, n):
     """ Yield successive n-sized chunks from l.
     """
-    for i in xrange(0, len(l), n):
+    for i in range(0, len(l), n):
         yield l[i:i+n]
 
 def do_it():
@@ -136,7 +136,7 @@ def do_it():
     # sort them by date
     sortedvids = sorted(allvids, key=lambda k: k['snippet']['publishedAt'], reverse=True)
     sortedvids = sortedvids[:20]
-    
+
     try:
         index = [v['id'] for v in sortedvids].index(mostRecentId)
         sortedvids = sortedvids[:index]
