@@ -92,9 +92,9 @@ def get_playlist_items(playlist):
     videos = []
 
     if playlist:
-        print("Getting last 5 items for playlist "+playlist)
+        print("Getting last 25 items for playlist "+playlist)
         # get the last 5 videos uploaded to the playlist
-        url = baseurl + '/playlistItems?part=contentDetails&playlistId='+ playlist + '&maxResults=5&key=' + my_key
+        url = baseurl + '/playlistItems?part=contentDetails&playlistId='+ playlist + '&maxResults=25&key=' + my_key
         response = urllib.request.urlopen(url)
         data = json.load(response)
         for i in data['items']:
@@ -144,6 +144,7 @@ def do_it():
         pass
 
     sortedvids.reverse()
+    print(f"Downloading {len(sortedvids)} videos")
 
     ydl_opts = {'format': '22'}
 
